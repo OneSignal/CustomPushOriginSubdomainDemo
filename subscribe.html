@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Subscribe to Push</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="javascripts/onesignal-init.js"></script>
+    <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async="async"></script>
+    <script>
+      function log() {
+        var args = Array.prototype.slice.call(arguments);
+        args.unshift(location.href + ':');
+        console.log.apply(console, args);
+      }
+
+      function getUrlQueryParam(name) {
+        var url = window.location.href;
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+          results = regex.exec(url);
+        if (!results) return null;
+        if (!results[2]) return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+      }
+
+      log('iFrame page loaded and script running.');
+
+      /* From: https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#Example */
+      var OneSignal = window.OneSignal || [];
+
+      OneSignal.push(function() {
+          /*
+           We're subscribing for push notifications in general, but let's tag the user with the site he registered for.
+
+           e.g.
+
+           {
+           'http://abc.com': true
+           }
+
+           In the future, the user's tag list will look like:
+
+           {
+           'http://abc.com': true,
+           'https://test.anothersite.com': true,
+           'http://blah.com': true,
+           }
+
+           ^ Representing all the sites he should receive notifications for, virtually separated by these tags.
+           */
+        var tags = {};
+        tags[getUrlQueryParam('origin')] = true;
+        OneSignal.sendTags(tags);
+
+        OneSignal.on('register', function() {
+          OneSignal.getUserId()
+                   .then(function(userId) {
+                     log('A user entry has been created on OneSignal. Forwarding this event back to the host page, and closing the popup window.');
+                     window.opener.postMessage({
+                       command: 'doneSubscribing',
+                       extra: {
+                         userId: userId
+                       }
+                     }, '*');
+                     window.close();
+                   });
+        });
+      });
+    </script>
+</head>
+<body>
+</body>
+</html>
